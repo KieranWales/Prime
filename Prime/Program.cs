@@ -18,9 +18,12 @@ namespace Prime
         static Random rndm = new Random();
         static bool firstCurrentlyPrime;
         static bool secondCurrentlyPrime;
+        static bool currentlyPrime;
+        static int threads = 1000;
 
         static int currentNum;
 
+        static Task newThread;
         static Task firstHalfThread;
         static Task secondHalfThread;
 
@@ -43,15 +46,15 @@ namespace Prime
 
         static void ThreadedPrime()
         {
-            firstCurrentlyPrime = false;
-            secondCurrentlyPrime = false;
+            firstCurrentlyPrime = true;
+            secondCurrentlyPrime = true;
             firstHalfThread = new Task(checkFirst);
             secondHalfThread = new Task(checkSecond);
             firstHalfThread.Start();
             secondHalfThread.Start();
 
             while (!(firstHalfThread.IsCompleted && secondHalfThread.IsCompleted)) { /*Console.WriteLine("Waiting");*/ }
-            Console.WriteLine($"{currentNum} {firstHalfThread.IsCompleted} { secondHalfThread.IsCompleted}");
+            //Console.WriteLine($"{currentNum} {firstHalfThread.IsCompleted} { secondHalfThread.IsCompleted}");
             if (firstCurrentlyPrime && secondCurrentlyPrime)
             {
                 primes.Add(currentNum);
@@ -78,11 +81,42 @@ namespace Prime
             for (int i = min; i <= max; i++)
             {
                 currentNum = i;
-                Console.WriteLine(currentNum);
-                ThreadedPrime();
+                //Console.WriteLine(currentNum);
+                RunThreads();
                 //Console.WriteLine($"Is {i} prime: {ifPrime}");
             }
         }
+
+        static void RunThreads()
+        {
+            currentlyPrime = true;
+            for (int i = 0; i < threads; i++)
+            {
+                newThread = new Task(() => ThreadPrime(i));
+                newThread.Start();
+            }
+
+            tasks.WaitAll();
+            if (firstCurrentlyPrime && secondCurrentlyPrime)
+            {
+                primes.Add(currentNum);
+            }
+        }
+
+        static void ThreadPrime(int section)
+        {
+            int sectionLen = (primes.Count() - 1) / threads;
+            int start = sectionLen * section;
+            int end = sectionLen * (section + 1);
+            for (int a = start; a < end && primes[a] <= Math.Sqrt(currentNum); a++)
+            {
+                if (currentNum % primes[a] == 0)
+                {
+                    currentlyPrime = false;
+                }
+            }
+        }
+
 
         static void checkFirst()
         {
@@ -90,23 +124,21 @@ namespace Prime
             {
                 if (currentNum % primes[a] == 0)
                 {
-                    firstCurrentlyPrime = false;
+                    currentlyPrime = false;
                 }
             }
-            firstCurrentlyPrime = true;
         }
 
         static void checkSecond()
         {
             int halfLen = (primes.Count() - 1) / 2;
-            for (int a = 0; a < halfLen && primes[a + halfLen] <= Math.Sqrt(currentNum); a++)
+            for (int a = halfLen; a < primes.Count() - 1 && primes[a] <= Math.Sqrt(currentNum); a++)
             {
                 if (currentNum % primes[a] == 0)
                 {
                     secondCurrentlyPrime = false;
                 }
             }
-            secondCurrentlyPrime = true;
         }
 
 
